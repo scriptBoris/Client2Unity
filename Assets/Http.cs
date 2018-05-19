@@ -5,55 +5,70 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using UnityEngine;
+using UnityEngine.UI;
 
-public class Http : MonoBehaviour {
+public class Http : MonoBehaviour
+{
+    public Text uText;
 
-    #region private members 	
-    private TcpClient socketConnection;
-    private Thread clientReceiveThread;
-    #endregion
+    private string _url;
+    private int _port;
+    private TcpClient _socketConnection;
+    private Thread _clientReceiveThread;
+
     // Use this for initialization 	
     void Start()
     {
-        ConnectToTcpServer();
+        ConnectToTcpServer("localhost", 8000);
+        Cmd("Connect to server...");
     }
+
+    void Cmd(string info)
+    {
+        print(info);
+        //uText.text += info;
+        
+    }
+
     // Update is called once per frame
     void Update()
     {
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            SendMessage();
+            SendMessage("Message from Unity client");
         }
     }
-    /// <summary> 	
-    /// Setup socket connection. 	
-    /// </summary> 	
-    private void ConnectToTcpServer()
+
+    // Setup socket connection. 	
+    private void ConnectToTcpServer(string url, int port)
     {
         try
         {
-            clientReceiveThread = new Thread(new ThreadStart(ListenForData));
-            clientReceiveThread.IsBackground = true;
-            clientReceiveThread.Start();
+            _url = url;
+            _port = port;
+            //StartCoroutine(ListenForData() );
+            _clientReceiveThread = new Thread(new ThreadStart(ListenForData));
+            _clientReceiveThread.IsBackground = true;
+            _clientReceiveThread.Start();
         }
         catch (Exception e)
         {
-            Debug.Log("On client connect exception " + e);
+            Cmd("On client connect exception " + e);
         }
     }
-    /// <summary> 	
-    /// Runs in background clientReceiveThread; Listens for incomming data. 	
-    /// </summary>     
+
+    // Runs in background clientReceiveThread; Listens for incomming data. 	
     private void ListenForData()
     {
+        //yield return null;
         try
         {
-            socketConnection = new TcpClient("localhost", 8052);
+            _socketConnection = new TcpClient(_url, _port);
             Byte[] bytes = new Byte[1024];
             while (true)
             {
-                // Get a stream object for reading 				
-                using (NetworkStream stream = socketConnection.GetStream())
+                // Get a stream object for reading
+                using (NetworkStream stream = _socketConnection.GetStream() )
                 {
                     int length;
                     // Read incomming stream into byte arrary. 					
@@ -63,42 +78,40 @@ public class Http : MonoBehaviour {
                         Array.Copy(bytes, 0, incommingData, 0, length);
                         // Convert byte array to string message. 						
                         string serverMessage = Encoding.ASCII.GetString(incommingData);
-                        Debug.Log("server message received as: " + serverMessage);
+                        Cmd("server message received as: " + serverMessage);
                     }
                 }
             }
         }
         catch (SocketException socketException)
         {
-            Debug.Log("Socket exception: " + socketException);
+            Cmd("Socket exception: " + socketException);
         }
     }
-    /// <summary> 	
-    /// Send message to server using socket connection. 	
-    /// </summary> 	
-    private void SendMessage()
+
+    // Send message to server using socket connection. 	
+    private void SendMessage(string clientMessage)
     {
-        if (socketConnection == null)
+        if (_socketConnection == null)
         {
             return;
         }
         try
         {
             // Get a stream object for writing. 			
-            NetworkStream stream = socketConnection.GetStream();
+            NetworkStream stream = _socketConnection.GetStream();
             if (stream.CanWrite)
             {
-                string clientMessage = "This is a message from one of your clients.";
                 // Convert string message to byte array.                 
                 byte[] clientMessageAsByteArray = Encoding.ASCII.GetBytes(clientMessage);
                 // Write byte array to socketConnection stream.                 
                 stream.Write(clientMessageAsByteArray, 0, clientMessageAsByteArray.Length);
-                Debug.Log("Client sent his message - should be received by server");
+                Cmd("Client sent his message - should be received by server");
             }
         }
         catch (SocketException socketException)
         {
-            Debug.Log("Socket exception: " + socketException);
+            Cmd("Socket exception: " + socketException);
         }
     }
 }
